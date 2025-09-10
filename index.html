@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faynix - Persistent Editable Popup</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #0d1117, #101820);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  flex-direction: column;
+}
+.card-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.card {
+  background: rgba(22, 27, 34, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 40px 30px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.25), 0 8px 30px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  text-align: center;
+}
+h1 {
+  font-family: 'Rajdhani', sans-serif;
+  color: #00ff88;
+  font-size: 60px;
+  margin-bottom: 10px;
+}
+p {
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #ccc;
+  font-weight: 600;
+  cursor: text;
+}
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: 1px solid #555;
+  background: rgba(13, 17, 23, 0.9);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  color: #111;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+button:hover {
+  background: linear-gradient(135deg, #00cc6a, #00ff88);
+  transform: translateY(-2px) scale(1.03);
+}
+.hidden { display: none; }
+
+/* Popup overlay */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center; /* মাঝখানে */
+  align-items: center;     /* মাঝখানে */
+  z-index: 10000;
+  overflow: hidden;
+}
+.popup-box {
+  background: rgba(22, 27, 34, 0.95);
+  padding: 16px;           /* padding ছোট করা */
+  border-radius: 12px;
+  text-align: center;
+  width: 70%;              /* ছোট সাইজ */
+  max-width: 280px;        /* ছোট সাইজ */
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+
+/* Editable popup */
+.popup-box p[contenteditable="true"] {
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  outline: none;
+  min-height: auto;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.popup-box button {
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  padding: 5px 12px;       /* ছোট বোতাম */
+  border-radius: 8px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 12px;
+}
+.popup-box button:hover {
+  background: linear-gradient(135deg, #00cc6a, #00ff88);
+}
+
+@media (max-width: 420px){
+  h1 { font-size: 40px; }
+  input, button { font-size: 14px; padding: 10px; }
+  .popup-box {
+    width: 80%;
+    max-width: 240px;
+    padding: 14px;
+  }
+  .popup-box button {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="card-wrapper" id="firstCardWrapper">
+  <div class="card" id="firstInterface">
+    <h1>Faynix</h1>
+    <p>Number Code to Earning</p>
+    <input type="text" id="username" placeholder="Enter Username" required>
+    <input type="number" id="number" placeholder="Enter Number" required>
+    <button onclick="goToSecond()">Submit</button>
+  </div>
+</div>
+
+<div class="card-wrapper hidden" id="secondInterface">
+  <div class="card">
+    <h1>Faynix</h1>
+    <p>Number Code to Earning</p>
+    <input type="text" id="code" placeholder="Write your code here">
+    <button onclick="submitCode()">Submit</button>
+  </div>
+</div>
+
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup-box">
+    <p id="popupMessage" contenteditable="true"></p>
+    <button onclick="closePopup()">OK</button>
+  </div>
+</div>
+
+<script>
+let submitCount = 0;
+
+// Load messages from localStorage
+let invalidNumberMsg = localStorage.getItem("invalidNumberMsg") || "❌ Invalid number. Please check again.";
+let codeSubmittedMsg = localStorage.getItem("codeSubmittedMsg") || "✅ Your code has been submitted!";
+let currentType = "";
+
+// Show popup
+function showPopup(message, type="") {
+  const popup = document.getElementById("popupOverlay");
+  const popupMessage = document.getElementById("popupMessage");
+  popupMessage.innerText = message;
+  popup.style.display = "flex";
+  currentType = type;
+
+  if(type === "code"){
+    setTimeout(() => {
+      const codeInput = document.getElementById("code");
+      codeInput.focus({ preventScroll: true });
+      codeInput.setSelectionRange(codeInput.value.length, codeInput.value.length);
+    }, 50);
+  }
+}
+
+// Close popup and save edited message
+function closePopup() {
+  const popup = document.getElementById("popupOverlay");
+  const popupMessage = document.getElementById("popupMessage");
+  const newText = popupMessage.innerText.trim();
+
+  if(currentType === "invalid" && newText !== ""){
+    invalidNumberMsg = newText;
+    localStorage.setItem("invalidNumberMsg", newText);
+  }
+  if(currentType === "code" && newText !== ""){
+    codeSubmittedMsg = newText;
+    localStorage.setItem("codeSubmittedMsg", newText);
+  }
+  popup.style.display = "none";
+
+  if(currentType === "code"){
+    setTimeout(() => {
+      const codeInput = document.getElementById("code");
+      codeInput.focus({ preventScroll: true });
+      codeInput.setSelectionRange(codeInput.value.length, codeInput.value.length);
+    }, 50);
+  }
+}
+
+// First interface submit
+function goToSecond() {
+  const username = document.getElementById("username").value.trim();
+  const number = document.getElementById("number").value.trim();
+  if(username === "" || number === ""){
+    showPopup("⚠️ Please enter Username and Number!");
+    return;
+  }
+  submitCount++;
+  if(submitCount === 1){
+    showPopup(invalidNumberMsg, "invalid");
+    return;
+  }
+  document.getElementById("firstCardWrapper").classList.add("hidden");
+  document.getElementById("secondInterface").classList.remove("hidden");
+  setTimeout(() => {
+    document.getElementById("code").focus();
+  }, 50);
+}
+
+// Second interface submit
+function submitCode() {
+  const code = document.getElementById("code").value.trim();
+  if(code === ""){
+    showPopup("⚠️ Please enter some code!");
+  } else {
+    showPopup(codeSubmittedMsg, "code");
+  }
+}
+</script>
+
+</body>
+</html>
